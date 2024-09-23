@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet Map with Multiple Filters</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+        #filters {
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="filters">
+        <!-- Dropdown for watercourse selection -->
+        <label for="watercourse">Watercourse:</label>
+        <select id="watercourse">
+            <option value="">Select a watercourse</option>
+            <option value="Bradford Beck">Bradford Beck</option>
+            <option value="Bowling Beck">Bowling Beck</option>
+            <option value="Thornton Beck">Thornton Beck</option>
+            <option value="East Brook">East Brook</option>
+            <option value="Clayton Beck">Clayton Beck</option>
+        </select><br>
+
+        <label for="floods">Affected by floods:</label>
+        <input type="checkbox" id="floods" name="floods"><br>
+
+        <label for="horsePower">Nominal Horse Power (min):</label>
+        <input type="number" id="horsePower" name="horsePower" value="0"><br>
+
+        <label for="dyes">Uses Dyes:</label>
+        <input type="checkbox" id="dyes" name="dyes"><br>
+
+        <label for="bleaching">Uses Bleaching Materials:</label>
+        <input type="checkbox" id="bleaching" name="bleaching"><br>
+
+        <button onclick="applyFilters()">Apply Filters</button>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([53.7912497, -1.7442514], 10);  // Center the map on Bradford
+        
+                // Define the OS 1908 25-inch map tile layer
+        var os1908Layer = L.tileLayer('https://mapseries-tilesets.s3.amazonaws.com/25_inch/yorkshire/{z}/{x}/{y}.png', {
+            attribution: '© National Library of Scotland',
+            maxZoom: 18
+        });
+
+        // Define the Modern-day OpenStreetMap tile layer
+        var modernDayLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        });
+
+        // Set the default layer when the map loads (e.g., OS 1908)
+        os1908Layer.addTo(map);
+
+                // Create a layer control and add it to the map
+        var baseMaps = {
+            "OS 1908 25-inch": os1908Layer,
+            "Modern-day OpenStreet Map": modernDayLayer
+        };
+
+        L.control.layers(baseMaps).addTo(map);
+
+        // URL to the GeoJSON file hosted on GitHub
+        var geojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/refs/heads/main/sept_23_v4.geojson';
+
+        var geojsonLayer;  // To store the loaded GeoJSON layer
+
+        // Fetch the GeoJSON file
+        fetch(geojsonUrl)
+            .then(response => response.json())
+            .then(data => {
+                // Add the GeoJSON layer to the map
+                geojsonLayer = L.geoJson(data, {
+                    onEachFeature: function (feature, layer) {
+                        var name = feature.properties.name || 'N/A';
+                        var businessType = feature.properties.business_type || 'N/A';
+                        var nominalHorsePower = feature.properties.nominal_horse_power || 'N/A';
+                        var usesDyes = feature.properties.uses_dyes ? 'Yes' : 'No';
+                        var usesBleaching = feature.properties.uses_bleaching_materials ? 'Yes' : 'No';
+                        var affectedByFloods = feature.properties.affected_by_floods ? 'Yes' : 'No';
+                        var situatedOnWatercourse = feature.properties.beck || 'N/A';
+
+                        var popupContent = '<b>' + name + '</b><br>' +
+                                           'Business Type: ' + businessType + '<br>' +
+                                           'Horse Power: ' + nominalHorsePower + '<br>' +
+                                           'Uses Dyes: ' + usesDyes + '<br>' +
+                                           'Uses Bleaching Materials: ' + usesBleaching + '<br>' +
+                                           'Affected by Floods: ' + affectedByFloods + '<br>' +
+                                           'Watercourse: ' + situatedOnWatercourse;
+
+                        layer.bindPopup(popupContent);
+                    }
+                }).addTo(map);
+
+                // Automatically zoom the map to fit all features
+                map.fitBounds(geojsonLayer.getBounds());
+            })
+            .catch(err => console.error('Error loading GeoJSON: ', err));
+
+        // Function to apply filters
+        function applyFilters() {
+            // Get filter values
+            var selectedWatercourse = document.getElementById('watercourse').value;
+            var showFloods = document.getElementById('floods').checked;
+            var minHorsePower = document.getElementById('horsePower').value;
+            var showDyes = document.getElementById('dyes').checked;
+            var showBleaching = document.getElementById('bleaching').checked;
+
+            // Remove the current GeoJSON layer from the map
+            if (geojsonLayer) {
+                map.removeLayer(geojsonLayer);
+            }
+
+            // Fetch the GeoJSON file again and apply the filters
+            fetch(geojsonUrl)
+                .then(response => response.json())
+                .then(data => {
+                    // Filter the features based on the user input
+                    var filteredFeatures = data.features.filter(function (feature) {
+                        var nominalHorsePower = feature.properties.nominal_horse_power || 0;
+                        var affectedByFloods = feature.properties.affected_by_floods || false;
+                        var usesDyes = feature.properties.uses_dyes || false;
+                        var usesBleaching = feature.properties.uses_bleaching_materials || false;
+                        var watercourseMatches = feature.properties.beck === selectedWatercourse || selectedWatercourse === '';
+
+                        // Apply the filtering logic
+                        var passesFloodsFilter = !showFloods || affectedByFloods;
+                        var passesHorsePowerFilter = nominalHorsePower >= minHorsePower;
+                        var passesDyesFilter = !showDyes || usesDyes;
+                        var passesBleachingFilter = !showBleaching || usesBleaching;
+                        var passesWatercourseFilter = watercourseMatches;
+
+                        return passesFloodsFilter && passesHorsePowerFilter && passesDyesFilter && passesBleachingFilter && passesWatercourseFilter;
+                    });
+
+                    // Create a new GeoJSON layer with the filtered features
+                    geojsonLayer = L.geoJson({
+                        "type": "FeatureCollection",
+                        "features": filteredFeatures
+                    }, {
+                        onEachFeature: function (feature, layer) {
+                            var name = feature.properties.name || 'N/A';
+                            var businessType = feature.properties.business_type || 'N/A';
+                            var nominalHorsePower = feature.properties.nominal_horse_power || 'N/A';
+                            var usesDyes = feature.properties.uses_dyes ? 'Yes' : 'No';
+                            var usesBleaching = feature.properties.uses_bleaching_materials ? 'Yes' : 'No';
+                            var affectedByFloods = feature.properties.affected_by_floods ? 'Yes' : 'No';
+                            var situatedOnWatercourse = feature.properties.beck || 'N/A';
+
+                            var popupContent = '<b>' + name + '</b><br>' +
+                                               'Business Type: ' + businessType + '<br>' +
+                                               'Horse Power: ' + nominalHorsePower + '<br>' +
+                                               'Uses Dyes: ' + usesDyes + '<br>' +
+                                               'Uses Bleaching Materials: ' + usesBleaching + '<br>' +
+                                               'Affected by Floods: ' + affectedByFloods + '<br>' +
+                                               'Watercourse: ' + situatedOnWatercourse;
+
+                            layer.bindPopup(popupContent);
+                        }
+                    }).addTo(map);
+
+                    // Zoom to fit the filtered data
+                    map.fitBounds(geojsonLayer.getBounds());
+                })
+                .catch(err => console.error('Error filtering GeoJSON: ', err));
+        }
+    </script>
+</body>
+</html>
