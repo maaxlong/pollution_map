@@ -178,7 +178,7 @@
             <div id="btn-woollen" class="filter-button">Woollen & Worsted Manufacturers</div>
             <div id="btn-dyers" class="filter-button">Dyers and Sizers</div>
             <div id="btn-other" class="filter-button">Other</div>
-            <div id="btn-all" class="filter-button">All</div>
+            <div id="btn-all" class="filter-button">Reset</div>
         </div>
 
         <!-- Fixed Info Box -->
@@ -326,10 +326,10 @@
                     }
                 });
 
-                // Highlight the selected marker
+                // Highlight the selected marker in yellow
                 layer.setStyle({
                     radius: 8, // Increased size for highlight
-                    fillColor: getMarkerColor(feature.properties.business_category || 'Other'), // Original color
+                    fillColor: '#FFFF00', // Yellow color for highlight
                     color: "#000",
                     weight: 2, // Thicker border
                     opacity: 1,
@@ -348,7 +348,7 @@
 
             // Mouseover event to grey out the marker if it's not selected
             layer.on('mouseover', function () {
-                // Check if the marker is not currently highlighted (fillOpacity is not 1)
+                // Check if the marker is not currently highlighted (fillColor is not yellow)
                 if (layer !== selectedLayer) {
                     layer.setStyle({
                         fillColor: '#808080', // Grey color
@@ -359,10 +359,10 @@
 
             // Mouseout event to reset the marker style if it's not selected
             layer.on('mouseout', function () {
-                // If the marker is highlighted, keep its original color and opacity
+                // If the marker is highlighted, keep its yellow color
                 if (layer === selectedLayer) {
                     layer.setStyle({
-                        fillColor: getMarkerColor(feature.properties.business_category || 'Other'),
+                        fillColor: '#FFFF00',
                         fillOpacity: 1
                     });
                 } else {
@@ -454,7 +454,17 @@
             infoBox.style.display = 'none';
             infoBox.style.opacity = '0';
             // Reset the selectedLayer reference
-            selectedLayer = null;
+            if (selectedLayer) {
+                selectedLayer.setStyle({
+                    radius: 6,
+                    fillColor: getMarkerColor(selectedLayer.feature.properties.business_category || 'Other'),
+                    color: "#000",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+                selectedLayer = null;
+            }
         }
 
         // Function to zoom to the feature
@@ -539,10 +549,10 @@
                                 }
                             });
 
-                            // Highlight the selected marker
+                            // Highlight the selected marker in yellow
                             layer.setStyle({
                                 radius: 8,
-                                fillColor: getMarkerColor(selectedFeature.properties.business_category || 'Other'),
+                                fillColor: '#FFFF00', // Yellow color for highlight
                                 color: "#000",
                                 weight: 2,
                                 opacity: 1,
@@ -671,18 +681,6 @@
         // Attach event listener to the close button in the info box
         document.querySelector('#info-box .close-btn').addEventListener('click', function() {
             closeInfoBox();
-            // Reset selectedLayer reference
-            if (selectedLayer) {
-                selectedLayer.setStyle({
-                    radius: 6,
-                    fillColor: getMarkerColor(selectedLayer.feature.properties.business_category || 'Other'),
-                    color: "#000",
-                    weight: 1,
-                    opacity: 1,
-                    fillOpacity: 0.8
-                });
-                selectedLayer = null;
-            }
         });
     </script>
 </body>
