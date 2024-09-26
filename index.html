@@ -204,6 +204,11 @@
             maxZoom: 18
         });
 
+				var os1852Layer = L.tileLayer( 'https://mapseries-tilesets.s3.amazonaws.com/os/six-inch-yorkshire/{z}/{x}/{y}.png', {
+            attribution: '© National Library of Scotland',
+            maxZoom: 18
+        });
+
         // Define the Modern-day OpenStreetMap tile layer
         var modernDayLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
@@ -216,7 +221,8 @@
         // Create a layer control and add it to the map
         var baseMaps = {
             "OS 1908 25-inch": os1908Layer,
-            "Modern-day OpenStreet Map": modernDayLayer
+            "Modern-day OpenStreet Map": modernDayLayer,
+            "OS 1852 6-inch": os1852Layer
         };
         L.control.layers(baseMaps).addTo(map);
         
