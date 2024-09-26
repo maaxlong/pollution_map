@@ -72,7 +72,48 @@
         };
 
         L.control.layers(baseMaps).addTo(map);
+        
+                // URL to the rivers GeoJSON file
+        var riversGeojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/refs/heads/main/data/1852_becks_26_Sept.geojson'; // Update this to the actual path of your GeoJSON
+        
+        // Variable to store the rivers layer for later filtering
+        var riversLayer;
+        
+        // Fetch and add the rivers GeoJSON
+        fetch(riversGeojsonUrl)
+            .then(response => response.json())
+            .then(data => {
+                // Create a new GeoJSON layer for rivers
+                riversLayer = L.geoJson(data, {
+                    style: function (feature) {
+                        return {
+                            color: "#00BFFF",  // Line color for rivers
+                            weight: 2,         // Line thickness
+                            opacity: 0.7       // Line opacity
+                        };
+                    },
+                    onEachFeature: function (feature, layer) {
+                        // Extract the river name from the feature properties
+                        var riverName = feature.properties.Name || 'Unnamed River';
+        
+                        // Add a tooltip that only shows on hover
+                        layer.bindTooltip(riverName, {
+                            permanent: false,  // Show only on hover
+                            direction: "center",  // Center the tooltip over the line
+                            className: "river-label"
+                        });
+                    }
+                }).addTo(map);
+        
+                // Fit the map bounds to show all rivers initially
+                map.fitBounds(riversLayer.getBounds());
+            })
+            .catch(err => console.error('Error loading rivers GeoJSON: ', err));
 
+
+        
+
+        
         // URL to the GeoJSON file hosted on GitHub
         var geojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/refs/heads/main/data/sept_23_v4.geojson';
 
