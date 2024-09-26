@@ -27,7 +27,24 @@
             height: 100%;
             width: 100%;
         }
+        /* Styling for the layer control title */
+.layer-control-title {
+    background: transparent; 
+    padding: 8px 12px;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 5px; /* Space between title and layer options */
+    border-radius: 5px 5px 0 0; /* Rounds the top corners */
+}
 
+/* Optional: Adjustments for small screens */
+@media (max-width: 600px) {
+    .layer-control-title {
+        font-size: 14px;
+        padding: 6px 10px;
+    }
+}
         /* Styling for filter buttons at the bottom */
         .filter-buttons {
             position: absolute;
@@ -225,6 +242,22 @@
             "OS 1852 6-inch": os1852Layer
         };
         L.control.layers(baseMaps).addTo(map);
+        
+        // Wait for the DOM to fully load
+document.addEventListener('DOMContentLoaded', function() {
+    // Select the layer control container
+    var layerControl = document.querySelector('.leaflet-control-layers');
+
+    if (layerControl) {
+        // Create a new div element for the title
+        var titleDiv = L.DomUtil.create('div', 'layer-control-title', layerControl);
+        titleDiv.innerHTML = '<strong>Choose a map layer:</strong>';
+
+        // Optional: Prevent interactions with the title div
+        L.DomEvent.disableClickPropagation(titleDiv);
+        L.DomEvent.disableScrollPropagation(titleDiv);
+    }
+});
         
         // URL to the rivers GeoJSON file
         var riversGeojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/main/data/1852_becks_26_Sept.geojson';
