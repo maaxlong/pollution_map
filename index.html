@@ -6,51 +6,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
-        #map {
-            height: 600px;
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map-container {
+            position: relative;
+            height: 100%;
             width: 100%;
         }
-        #filters {
-            margin: 10px;
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        .filter-buttons {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px;
+            border-radius: 5px;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            font-size: 10px;
+            justify-content: center;
+        }
+        .filter-button {
+            display: inline-block;
+            margin: 0 5px;
+            padding: 10px;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #btn-woollen {
+            background-color: #FF6347; /* Tomato Red */
+        }
+        #btn-dyers {
+            background-color: #4682B4; /* Steel Blue */
+        }
+        #btn-other {
+            background-color: #32CD32; /* Lime Green */
+        }
+        #btn-all {
+            background-color: #FFD700; /* Gold */
         }
     </style>
 </head>
 <body>
-    <div id="filters">
-        <!-- Dropdown for watercourse selection -->
-        <label for="watercourse">Watercourse:</label>
-        <select id="watercourse">
-            <option value="">Select a watercourse</option>
-            <option value="Bradford Beck">Bradford Beck</option>
-            <option value="Bowling Beck">Bowling Beck</option>
-            <option value="Thornton Beck">Thornton Beck</option>
-            <option value="East Brook">East Brook</option>
-            <option value="Clayton Beck">Clayton Beck</option>
-        </select><br>
 
-        <label for="floods">Affected by floods:</label>
-        <input type="checkbox" id="floods" name="floods"><br>
-
-        <label for="horsePower">Nominal Horse Power (min):</label>
-        <input type="number" id="horsePower" name="horsePower" value="0"><br>
-
-        <label for="dyes">Uses Dyes:</label>
-        <input type="checkbox" id="dyes" name="dyes"><br>
-
-        <label for="bleaching">Uses Bleaching Materials:</label>
-        <input type="checkbox" id="bleaching" name="bleaching"><br>
-
-        <button onclick="applyFilters()">Apply Filters</button>
+    <div id="map-container">
+        <div id="map"></div>
+        <div class="filter-buttons">
+            <div id="btn-woollen" class="filter-button">Woollen & Worsted Manufacturers</div>
+            <div id="btn-dyers" class="filter-button">Dyers and Sizers</div>
+            <div id="btn-other" class="filter-button">Other</div>
+            <div id="btn-all" class="filter-button">All</div>
+        </div>
     </div>
-
-    <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
         // Initialize the map
         var map = L.map('map').setView([53.7912497, -1.7442514], 10);  // Center the map on Bradford
-        
-                // Define the OS 1908 25-inch map tile layer
+
+        // Define the OS 1908 25-inch map tile layer
         var os1908Layer = L.tileLayer('https://mapseries-tilesets.s3.amazonaws.com/25_inch/yorkshire/{z}/{x}/{y}.png', {
             attribution: '© National Library of Scotland',
             maxZoom: 18
@@ -65,7 +89,7 @@
         // Set the default layer when the map loads (e.g., OS 1908)
         os1908Layer.addTo(map);
 
-                // Create a layer control and add it to the map
+        // Create a layer control and add it to the map
         var baseMaps = {
             "OS 1908 25-inch": os1908Layer,
             "Modern-day OpenStreet Map": modernDayLayer
@@ -73,183 +97,230 @@
 
         L.control.layers(baseMaps).addTo(map);
         
-                // URL to the rivers GeoJSON file
-        var riversGeojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/refs/heads/main/data/1852_becks_26_Sept.geojson'; // Update this to the actual path of your GeoJSON
+        // URL to the rivers GeoJSON file
+        var riversGeojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/refs/heads/main/data/1852_becks_26_Sept.geojson';
         
         // Variable to store the rivers layer for later filtering
         var riversLayer;
         
         // Fetch and add the rivers GeoJSON
-        fetch(riversGeojsonUrl)
-            .then(response => response.json())
-            .then(data => {
-                // Create a new GeoJSON layer for rivers
-                riversLayer = L.geoJson(data, {
-                    style: function (feature) {
-                        return {
-                            color: "#00BFFF",  // Line color for rivers
-                            weight: 2,         // Line thickness
-                            opacity: 0.7       // Line opacity
-                        };
-                    },
-                    onEachFeature: function (feature, layer) {
-                        // Extract the river name from the feature properties
-                        var riverName = feature.properties.Name || 'Unnamed River';
-        
-                        // Add a tooltip that only shows on hover
-                        layer.bindTooltip(riverName, {
-                            permanent: false,  // Show only on hover
-                            direction: "center",  // Center the tooltip over the line
-                            className: "river-label"
-                        });
-                    }
-                }).addTo(map);
-        
-                // Fit the map bounds to show all rivers initially
-                map.fitBounds(riversLayer.getBounds());
-            })
-            .catch(err => console.error('Error loading rivers GeoJSON: ', err));
+// Fetch and add the rivers GeoJSON
+fetch(riversGeojsonUrl)
+    .then(response => response.json())
+    .then(data => {
+        // Create a new GeoJSON layer for rivers
+        riversLayer = L.geoJson(data, {
+            style: function (feature) {
+                return {
+                    color: "#00BFFF",  // Initial line color for rivers
+                    weight: 3,         // Line thickness
+                    opacity: 0.7       // Line opacity
+                };
+            },
+            onEachFeature: function (feature, layer) {
+                // Extract the river name from the feature properties
+                var riverName = feature.properties.Name || 'Unnamed River';
 
+                // Add a tooltip that only shows on hover
+                layer.bindTooltip(riverName, {
+                    permanent: false,  // Show only on hover
+                    direction: "center",  // Center the tooltip over the line
+                    className: "river-label"
+                });
 
-        
+                // Event listeners for highlighting
+                layer.on('mouseover', function () {
+                    layer.setStyle({
+                        color: "darkblue",  // Change to dark blue on hover
+                        weight: 8,          // Thicker line on hover
+                        opacity: 1
+                    });
+                });
 
-        
+                // Reset style on mouseout
+                layer.on('mouseout', function () {
+                    riversLayer.resetStyle(layer);  // Reset to default style
+                });
+            }
+        }).addTo(map);
+
+        // Fit the map bounds to show all rivers initially
+        map.fitBounds(riversLayer.getBounds());
+    })
+    .catch(err => console.error('Error loading rivers GeoJSON: ', err));
+
         // URL to the GeoJSON file hosted on GitHub
-        var geojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/refs/heads/main/data/sept_26_v1_mills.geojson';
+        var geojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/refs/heads/main/data/sept_26_v4.geojson';
 
         var geojsonLayer;  // To store the loaded GeoJSON layer
 
-                // Fetch the GeoJSON file
+        // Function to get marker color based on business category
+        function getMarkerColor(businessCategory) {
+            switch (businessCategory) {
+                case 'Woollen & Worsted Manufacturers':
+                    return '#FF6347';  // Tomato Red
+                case 'Dyers and Sizers':
+                    return '#4682B4';  // Steel Blue
+                default:
+                    return '#32CD32';  // Lime Green for 'Other'
+            }
+        }
+
+        // Fetch the GeoJSON file
         fetch(geojsonUrl)
             .then(response => response.json())
             .then(data => {
-                // Add the GeoJSON layer to the map
                 geojsonLayer = L.geoJson(data, {
-                    onEachFeature: function (feature, layer) {
-                        // Standard properties
-                        var name = feature.properties.name || 'N/A';
-                        var businessType = feature.properties.business_type || 'N/A';
-                        var nominalHorsePower = feature.properties.nominal_horse_power || 'N/A';
-                        var usesDyes = feature.properties.uses_dyes ? 'Yes' : 'No';
-                        var usesBleaching = feature.properties.uses_bleaching_materials ? 'Yes' : 'No';
-                        var affectedByFloods = feature.properties.affected_by_floods ? 'Yes' : 'No';
-                        var situatedOnWatercourse = feature.properties.beck || 'N/A';
-        
-                        // Status of river comments
-                        var statusOfRiverComments = feature.properties.status_of_river_comments || 'No comments';
-        
-                        // Soapsuds
-                        var soapsuds = feature.properties.soapsuds;
-                        var treatedForGrease = soapsuds ? (soapsuds.treated_for_recovery_of_grease ? 'Yes' : 'No') : 'N/A';
-        
-                        // Oils
-                        var oils = feature.properties.oils;
-                        var oilInfo = 'No oils used';
-                        if (oils && oils.length > 0) {
-                            oilInfo = oils.map(oil => 
-                                `${oil.oil_type || 'Unknown oil'}: ${oil.quantity || 'N/A'} ${oil.quantity_measured_in || ''} (${oil.value || 'N/A'} value)`
-                            ).join('<br>');
-                        }
-        
-                        // Water supplies
-                        var waterSupplies = feature.properties.water_supplies;
-                        var waterSources = 'No water sources';
-                        if (waterSupplies && waterSupplies.length > 0) {
-                            waterSources = waterSupplies.map(supply => supply.source_of_water || 'Unknown source').join(', ');
-                        }
-        
-                        // Popup content
-                        var popupContent = '<b>' + name + '</b><br>' +
-                                           'Business Type: ' + businessType + '<br>' +
-                                           'Horse Power: ' + nominalHorsePower + '<br>' +
-                                           'Uses Dyes: ' + usesDyes + '<br>' +
-                                           'Uses Bleaching Materials: ' + usesBleaching + '<br>' +
-                                           'Affected by Floods: ' + affectedByFloods + '<br>' +
-                                           'Watercourse: ' + situatedOnWatercourse + '<br>' +
-                                           'Status of River: ' + statusOfRiverComments + '<br>' +
-                                           'Treated for Grease (soapsuds): ' + treatedForGrease + '<br>' +
-                                           'Oils: ' + oilInfo + '<br>' +
-                                           'Water Sources: ' + waterSources;
-        
-                        // Bind popup to the layer
-                        layer.bindPopup(popupContent);
+                    pointToLayer: function(feature, latlng) {
+                        var businessCategory = feature.properties.business_category || 'Other';
+                        var markerColor = getMarkerColor(businessCategory);
+
+                        return L.circleMarker(latlng, {
+                            radius: 4,
+                            fillColor: markerColor,
+                            color: "#000",  // Border color
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    },
+onEachFeature: function (feature, layer) {
+                // Extract properties
+                var name = feature.properties.name || 'N/A';
+                var businessType = feature.properties.business_type || 'N/A';
+                var businessCategory = feature.properties.business_category || 'Other';
+                var nominalHorsePower = feature.properties.nominal_horse_power || 'N/A';
+                var usesDyes = feature.properties.uses_dyes !== undefined ? (feature.properties.uses_dyes ? 'Yes' : 'No') : 'N/A';
+                var usesBleaching = feature.properties.uses_bleaching_materials !== undefined ? (feature.properties.uses_bleaching_materials ? 'Yes' : 'No') : 'N/A';
+                var affectedByFloods = feature.properties.affected_by_floods !== undefined ? (feature.properties.affected_by_floods ? 'Yes' : 'No') : 'N/A';
+                var situatedOnWatercourse = feature.properties.beck || 'N/A';
+
+                // Status of river comments
+                var statusOfRiverComments = feature.properties.status_of_river_comments || 'No comments';
+
+                // Soapsuds: Check if the soapsuds property exists and is valid
+                var soapsuds = feature.properties.soapsuds && typeof feature.properties.soapsuds === 'object' ? feature.properties.soapsuds : null;
+                var treatedForGrease = soapsuds && soapsuds.treated_for_recovery_of_grease !== undefined ? (soapsuds.treated_for_recovery_of_grease ? 'Yes' : 'No') : 'N/A';
+
+                // Oils: Check if oils is an array and valid
+                var oils = Array.isArray(feature.properties.oils) && feature.properties.oils.length > 0 ? feature.properties.oils : null;
+                var oilInfo = 'No oils used';
+                if (oils) {
+                    oilInfo = oils.map(oil => {
+                        var oilType = oil.oil_type || 'Unknown oil';
+                        var quantity = oil.quantity || 'N/A';
+                        var unit = oil.quantity_measured_in || '';
+                        var value = oil.value || 'N/A';
+                        return `${oilType}: ${quantity} ${unit} (${value} value)`;
+                    }).join('<br>');
+                }
+
+                // Water supplies: Check if water_supplies is an object or an array
+                var waterSupplies = feature.properties.water_supplies;
+                var waterSources = 'No water sources';
+
+                if (waterSupplies) {
+                    if (Array.isArray(waterSupplies)) {
+                        // If water_supplies is an array
+                        waterSources = waterSupplies.map(function(supply) {
+                            return supply.source_of_water || 'Unknown source';
+                        }).join(', ');
+                    } else if (typeof waterSupplies === 'object') {
+                        // If water_supplies is a single object
+                        waterSources = waterSupplies.source_of_water || 'Unknown source';
                     }
-                }).addTo(map);
-            })
-            .catch(err => console.error('Error loading GeoJSON: ', err));
+                }
 
-                // Automatically zoom the map to fit all features
-                map.fitBounds(geojsonLayer.getBounds());
-            })
-            .catch(err => console.error('Error loading GeoJSON: ', err));
+                // Popup content
+                var popupContent = '<b>' + name + '</b><br>' +
+                                   'Business Type: ' + businessType + '<br>' +
+                                   'Business Category: ' + businessCategory + '<br>' +
+                                   'Horse Power: ' + nominalHorsePower + '<br>' +
+                                   'Uses Dyes: ' + usesDyes + '<br>' +
+                                   'Uses Bleaching Materials: ' + usesBleaching + '<br>' +
+                                   'Affected by Floods: ' + affectedByFloods + '<br>' +
+                                   'Watercourse: ' + situatedOnWatercourse + '<br>' +
+                                   'Status of River: ' + statusOfRiverComments + '<br>' +
+                                   'Treated for Grease (soapsuds): ' + treatedForGrease + '<br>' +
+                                   'Oils: ' + oilInfo + '<br>' +
+                                   'Water Sources: ' + waterSources;
 
-        // Function to apply filters
-        function applyFilters() {
-            // Get filter values
-            var selectedWatercourse = document.getElementById('watercourse').value;
-            var showFloods = document.getElementById('floods').checked;
-            var minHorsePower = document.getElementById('horsePower').value;
-            var showDyes = document.getElementById('dyes').checked;
-            var showBleaching = document.getElementById('bleaching').checked;
+                layer.bindPopup(popupContent);
+            }
+        }).addTo(map);
+        map.fitBounds(geojsonLayer.getBounds());
+    })
+    .catch(err => console.error('Error loading GeoJSON: ', err));
 
-            // Remove the current GeoJSON layer from the map
+        // Function to filter data based on category
+        function filterByCategory(category) {
             if (geojsonLayer) {
                 map.removeLayer(geojsonLayer);
             }
 
-            // Fetch the GeoJSON file again and apply the filters
             fetch(geojsonUrl)
                 .then(response => response.json())
                 .then(data => {
-                    // Filter the features based on the user input
-                    var filteredFeatures = data.features.filter(function (feature) {
-                        var nominalHorsePower = feature.properties.nominal_horse_power || 0;
-                        var affectedByFloods = feature.properties.affected_by_floods || false;
-                        var usesDyes = feature.properties.uses_dyes || false;
-                        var usesBleaching = feature.properties.uses_bleaching_materials || false;
-                        var watercourseMatches = feature.properties.beck === selectedWatercourse || selectedWatercourse === '';
+                    var filteredFeatures = category === 'All' 
+                        ? data.features 
+                        : data.features.filter(function (feature) {
+                            return feature.properties.business_category === category;
+                        });
 
-                        // Apply the filtering logic
-                        var passesFloodsFilter = !showFloods || affectedByFloods;
-                        var passesHorsePowerFilter = nominalHorsePower >= minHorsePower;
-                        var passesDyesFilter = !showDyes || usesDyes;
-                        var passesBleachingFilter = !showBleaching || usesBleaching;
-                        var passesWatercourseFilter = watercourseMatches;
-
-                        return passesFloodsFilter && passesHorsePowerFilter && passesDyesFilter && passesBleachingFilter && passesWatercourseFilter;
-                    });
-
-                    // Create a new GeoJSON layer with the filtered features
                     geojsonLayer = L.geoJson({
                         "type": "FeatureCollection",
                         "features": filteredFeatures
                     }, {
+                        pointToLayer: function(feature, latlng) {
+                            var businessCategory = feature.properties.business_category || 'Other';
+                            var markerColor = getMarkerColor(businessCategory);
+
+                            return L.circleMarker(latlng, {
+                                radius: 4,
+                                fillColor: markerColor,
+                                color: "#000",
+                                weight: 1,
+                                opacity: 1,
+                                fillOpacity: 0.8
+                            });
+                        },
                         onEachFeature: function (feature, layer) {
                             var name = feature.properties.name || 'N/A';
                             var businessType = feature.properties.business_type || 'N/A';
+                            var businessCategory = feature.properties.business_category || 'Other';
                             var nominalHorsePower = feature.properties.nominal_horse_power || 'N/A';
-                            var usesDyes = feature.properties.uses_dyes ? 'Yes' : 'No';
-                            var usesBleaching = feature.properties.uses_bleaching_materials ? 'Yes' : 'No';
-                            var affectedByFloods = feature.properties.affected_by_floods ? 'Yes' : 'No';
-                            var situatedOnWatercourse = feature.properties.beck || 'N/A';
 
+                            // Popup content
                             var popupContent = '<b>' + name + '</b><br>' +
                                                'Business Type: ' + businessType + '<br>' +
-                                               'Horse Power: ' + nominalHorsePower + '<br>' +
-                                               'Uses Dyes: ' + usesDyes + '<br>' +
-                                               'Uses Bleaching Materials: ' + usesBleaching + '<br>' +
-                                               'Affected by Floods: ' + affectedByFloods + '<br>' +
-                                               'Watercourse: ' + situatedOnWatercourse;
+                                               'Business Category: ' + businessCategory + '<br>' +
+                                               'Horse Power: ' + nominalHorsePower;
 
                             layer.bindPopup(popupContent);
                         }
                     }).addTo(map);
 
-                    // Zoom to fit the filtered data
                     map.fitBounds(geojsonLayer.getBounds());
                 })
-                .catch(err => console.error('Error filtering GeoJSON: ', err));
+                .catch(err => console.error('Error loading filtered GeoJSON: ', err));
         }
+
+        // Attach event listeners to the buttons
+        document.getElementById('btn-woollen').addEventListener('click', function() {
+            filterByCategory('Woollen & Worsted Manufacturers');
+        });
+
+        document.getElementById('btn-dyers').addEventListener('click', function() {
+            filterByCategory('Dyers and Sizers');
+        });
+
+        document.getElementById('btn-other').addEventListener('click', function() {
+            filterByCategory('Other');
+        });
+
+        document.getElementById('btn-all').addEventListener('click', function() {
+            filterByCategory('All');
+        });
     </script>
 </body>
 </html>
