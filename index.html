@@ -119,13 +119,14 @@
 
         var geojsonLayer;  // To store the loaded GeoJSON layer
 
-        // Fetch the GeoJSON file
+                // Fetch the GeoJSON file
         fetch(geojsonUrl)
             .then(response => response.json())
             .then(data => {
                 // Add the GeoJSON layer to the map
                 geojsonLayer = L.geoJson(data, {
                     onEachFeature: function (feature, layer) {
+                        // Standard properties
                         var name = feature.properties.name || 'N/A';
                         var businessType = feature.properties.business_type || 'N/A';
                         var nominalHorsePower = feature.properties.nominal_horse_power || 'N/A';
@@ -133,18 +134,49 @@
                         var usesBleaching = feature.properties.uses_bleaching_materials ? 'Yes' : 'No';
                         var affectedByFloods = feature.properties.affected_by_floods ? 'Yes' : 'No';
                         var situatedOnWatercourse = feature.properties.beck || 'N/A';
-
+        
+                        // Status of river comments
+                        var statusOfRiverComments = feature.properties.status_of_river_comments || 'No comments';
+        
+                        // Soapsuds
+                        var soapsuds = feature.properties.soapsuds;
+                        var treatedForGrease = soapsuds ? (soapsuds.treated_for_recovery_of_grease ? 'Yes' : 'No') : 'N/A';
+        
+                        // Oils
+                        var oils = feature.properties.oils;
+                        var oilInfo = 'No oils used';
+                        if (oils && oils.length > 0) {
+                            oilInfo = oils.map(oil => 
+                                `${oil.oil_type || 'Unknown oil'}: ${oil.quantity || 'N/A'} ${oil.quantity_measured_in || ''} (${oil.value || 'N/A'} value)`
+                            ).join('<br>');
+                        }
+        
+                        // Water supplies
+                        var waterSupplies = feature.properties.water_supplies;
+                        var waterSources = 'No water sources';
+                        if (waterSupplies && waterSupplies.length > 0) {
+                            waterSources = waterSupplies.map(supply => supply.source_of_water || 'Unknown source').join(', ');
+                        }
+        
+                        // Popup content
                         var popupContent = '<b>' + name + '</b><br>' +
                                            'Business Type: ' + businessType + '<br>' +
                                            'Horse Power: ' + nominalHorsePower + '<br>' +
                                            'Uses Dyes: ' + usesDyes + '<br>' +
                                            'Uses Bleaching Materials: ' + usesBleaching + '<br>' +
                                            'Affected by Floods: ' + affectedByFloods + '<br>' +
-                                           'Watercourse: ' + situatedOnWatercourse;
-
+                                           'Watercourse: ' + situatedOnWatercourse + '<br>' +
+                                           'Status of River: ' + statusOfRiverComments + '<br>' +
+                                           'Treated for Grease (soapsuds): ' + treatedForGrease + '<br>' +
+                                           'Oils: ' + oilInfo + '<br>' +
+                                           'Water Sources: ' + waterSources;
+        
+                        // Bind popup to the layer
                         layer.bindPopup(popupContent);
                     }
                 }).addTo(map);
+            })
+            .catch(err => console.error('Error loading GeoJSON: ', err));
 
                 // Automatically zoom the map to fit all features
                 map.fitBounds(geojsonLayer.getBounds());
