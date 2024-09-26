@@ -1,25 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Leaflet Map with Multiple Filters</title>
+    <title>Leaflet Map with Filters and Info Box</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
+        /* Reset default margins and paddings */
         body, html {
             height: 100%;
             margin: 0;
             padding: 0;
+            font-family: 'Arial', sans-serif;
         }
+
+        /* Container for the map */
         #map-container {
             position: relative;
             height: 100%;
             width: 100%;
         }
+
+        /* Map styling */
         #map {
             height: 100%;
             width: 100%;
         }
+
+        /* Styling for filter buttons at the bottom */
         .filter-buttons {
             position: absolute;
             bottom: 20px;
@@ -29,11 +38,11 @@
             background-color: rgba(255, 255, 255, 0.8);
             padding: 5px;
             border-radius: 5px;
-            font-family: 'Arial', sans-serif;
             display: flex;
             font-size: 10px;
             justify-content: center;
         }
+
         .filter-button {
             display: inline-block;
             margin: 0 5px;
@@ -42,37 +51,143 @@
             font-weight: bold;
             border-radius: 5px;
             cursor: pointer;
+            user-select: none;
         }
+
+        /* Specific colors for each filter button */
         #btn-woollen {
             background-color: #FF6347; /* Tomato Red */
         }
+
         #btn-dyers {
             background-color: #4682B4; /* Steel Blue */
         }
+
         #btn-other {
             background-color: #32CD32; /* Lime Green */
         }
+
         #btn-all {
             background-color: #FFD700; /* Gold */
+            color: black;
+        }
+
+        /* Styling for the dropdown filter at the top */
+        .filter-dropdown {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 8px;
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .filter-dropdown select {
+            padding: 5px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        /* Info Box styling */
+        #info-box {
+            position: absolute;
+            top: 50px;
+            right: 20px;
+            width: 300px;
+            max-height: 80%;
+            overflow-y: auto;
+            background-color: rgba(255, 255, 255, 0.95); /* Adjustable opacity */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border-radius: 5px;
+            padding: 15px;
+            z-index: 1001;
+            display: none; /* Hidden by default */
+        }
+
+        /* Close button inside the info box */
+        #info-box .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        #info-box .close-btn:hover {
+            color: #000;
+        }
+
+        /* Sidebar content styling */
+        #info-box h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        #info-box p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            #info-box {
+                width: 90%;
+                right: 5%;
+                top: 60px;
+            }
+            .filter-dropdown select {
+                width: 150px;
+                font-size: 12px;
+            }
+            .filter-button {
+                padding: 8px;
+                font-size: 9px;
+            }
         }
     </style>
 </head>
 <body>
 
     <div id="map-container">
+        <!-- Dropdown Filter -->
+        <div class="filter-dropdown">
+            <select id="business-select">
+                <option value="">-- Select a Business --</option>
+                <!-- Options will be populated dynamically -->
+            </select>
+        </div>
+
+        <!-- Map Element -->
         <div id="map"></div>
+
+        <!-- Category Filter Buttons -->
         <div class="filter-buttons">
             <div id="btn-woollen" class="filter-button">Woollen & Worsted Manufacturers</div>
             <div id="btn-dyers" class="filter-button">Dyers and Sizers</div>
             <div id="btn-other" class="filter-button">Other</div>
             <div id="btn-all" class="filter-button">All</div>
         </div>
+
+        <!-- Info Box -->
+        <div id="info-box">
+            <span class="close-btn">&times;</span>
+            <div id="info-content">
+                <!-- Business details will be populated dynamically -->
+                <h2>Business Details</h2>
+                <p>Select a business to see details here.</p>
+            </div>
+        </div>
     </div>
 
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        // Initialize the map
-        var map = L.map('map').setView([53.7912497, -1.7442514], 10);  // Center the map on Bradford
+        // Initialize the map centered on Bradford
+        var map = L.map('map').setView([53.7912497, -1.7442514], 10);
 
         // Define the OS 1908 25-inch map tile layer
         var os1908Layer = L.tileLayer('https://mapseries-tilesets.s3.amazonaws.com/25_inch/yorkshire/{z}/{x}/{y}.png', {
@@ -86,7 +201,7 @@
             maxZoom: 19
         });
 
-        // Set the default layer when the map loads (e.g., OS 1908)
+        // Add the default tile layer to the map
         os1908Layer.addTo(map);
 
         // Create a layer control and add it to the map
@@ -94,65 +209,65 @@
             "OS 1908 25-inch": os1908Layer,
             "Modern-day OpenStreet Map": modernDayLayer
         };
-
         L.control.layers(baseMaps).addTo(map);
         
         // URL to the rivers GeoJSON file
-        var riversGeojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/refs/heads/main/data/1852_becks_26_Sept.geojson';
+        var riversGeojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/main/data/1852_becks_26_Sept.geojson';
         
         // Variable to store the rivers layer for later filtering
         var riversLayer;
         
         // Fetch and add the rivers GeoJSON
-// Fetch and add the rivers GeoJSON
-fetch(riversGeojsonUrl)
-    .then(response => response.json())
-    .then(data => {
-        // Create a new GeoJSON layer for rivers
-        riversLayer = L.geoJson(data, {
-            style: function (feature) {
-                return {
-                    color: "#00BFFF",  // Initial line color for rivers
-                    weight: 3,         // Line thickness
-                    opacity: 0.7       // Line opacity
-                };
-            },
-            onEachFeature: function (feature, layer) {
-                // Extract the river name from the feature properties
-                var riverName = feature.properties.Name || 'Unnamed River';
+        fetch(riversGeojsonUrl)
+            .then(response => response.json())
+            .then(data => {
+                // Create a new GeoJSON layer for rivers
+                riversLayer = L.geoJson(data, {
+                    style: function (feature) {
+                        return {
+                            color: "#00BFFF",  // Initial line color for rivers
+                            weight: 3,         // Line thickness
+                            opacity: 0.7       // Line opacity
+                        };
+                    },
+                    onEachFeature: function (feature, layer) {
+                        // Extract the river name from the feature properties
+                        var riverName = feature.properties.Name || 'Unnamed River';
 
-                // Add a tooltip that only shows on hover
-                layer.bindTooltip(riverName, {
-                    permanent: false,  // Show only on hover
-                    direction: "center",  // Center the tooltip over the line
-                    className: "river-label"
-                });
+                        // Add a tooltip that only shows on hover
+                        layer.bindTooltip(riverName, {
+                            permanent: false,  // Show only on hover
+                            direction: "center",  // Center the tooltip over the line
+                            className: "river-label"
+                        });
 
-                // Event listeners for highlighting
-                layer.on('mouseover', function () {
-                    layer.setStyle({
-                        color: "darkblue",  // Change to dark blue on hover
-                        weight: 8,          // Thicker line on hover
-                        opacity: 1
-                    });
-                });
+                        // Event listeners for highlighting
+                        layer.on('mouseover', function () {
+                            layer.setStyle({
+                                color: "darkblue",  // Change to dark blue on hover
+                                weight: 8,          // Thicker line on hover
+                                opacity: 1
+                            });
+                        });
 
-                // Reset style on mouseout
-                layer.on('mouseout', function () {
-                    riversLayer.resetStyle(layer);  // Reset to default style
-                });
-            }
-        }).addTo(map);
+                        // Reset style on mouseout
+                        layer.on('mouseout', function () {
+                            riversLayer.resetStyle(layer);  // Reset to default style
+                        });
+                    }
+                }).addTo(map);
 
-        // Fit the map bounds to show all rivers initially
-        map.fitBounds(riversLayer.getBounds());
-    })
-    .catch(err => console.error('Error loading rivers GeoJSON: ', err));
+                // Fit the map bounds to show all rivers initially
+                map.fitBounds(riversLayer.getBounds());
+            })
+            .catch(err => console.error('Error loading rivers GeoJSON: ', err));
 
         // URL to the GeoJSON file hosted on GitHub
-        var geojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/refs/heads/main/data/sept_26_v4.geojson';
+        var geojsonUrl = 'https://raw.githubusercontent.com/maaxlong/pollution_map/main/data/sept_26_v5.geojson';
 
-        var geojsonLayer;  // To store the loaded GeoJSON layer
+        var geojsonLayer;      // To store the loaded GeoJSON layer
+        var allGeoData = null; // To store all GeoJSON data globally
+        var allFeatures = [];  // To store currently displayed features for dropdown
 
         // Function to get marker color based on business category
         function getMarkerColor(businessCategory) {
@@ -166,17 +281,177 @@ fetch(riversGeojsonUrl)
             }
         }
 
-        // Fetch the GeoJSON file
+        // Reusable function to handle feature interactions
+        function onEachFeature(feature, layer) {
+            layer.on('click', function () {
+                displayInfoBox(feature, layer);
+                zoomToFeature(layer);
+            });
+        }
+
+        // Function to display the info box with business details
+        function displayInfoBox(feature, layer) {
+            var infoBox = document.getElementById('info-box');
+            var infoContent = document.getElementById('info-content');
+
+            // Extract properties with fallbacks
+            var name = feature.properties.name || 'N/A';
+            var address = feature.properties.address || 'N/A';
+            var businessType = feature.properties.business_type || 'N/A';
+            var businessCategory = feature.properties.business_category || 'Other';
+            var nominalHorsePower = feature.properties.nominal_horse_power || 'N/A';
+            var usesDyes = feature.properties.uses_dyes !== undefined ? (feature.properties.uses_dyes ? 'Yes' : 'No') : 'N/A';
+            var usesBleaching = feature.properties.uses_bleaching_materials !== undefined ? (feature.properties.uses_bleaching_materials ? 'Yes' : 'No') : 'N/A';
+            var affectedByFloods = feature.properties.affected_by_floods !== undefined ? (feature.properties.affected_by_floods ? 'Yes' : 'No') : 'N/A';
+            var situatedOnWatercourse = feature.properties.beck || 'N/A';
+
+            // Status of river comments
+            var statusOfRiverComments = feature.properties.status_of_river_comments || 'No comments';
+
+            // Soapsuds: Check if the soapsuds property exists and is valid
+            var soapsuds = feature.properties.soapsuds && typeof feature.properties.soapsuds === 'object' ? feature.properties.soapsuds : null;
+            var treatedForGrease = soapsuds && soapsuds.treated_for_recovery_of_grease !== undefined ? (soapsuds.treated_for_recovery_of_grease ? 'Yes' : 'No') : 'N/A';
+
+            // Oils: Check if oils is an array and valid
+            var oils = Array.isArray(feature.properties.oils) && feature.properties.oils.length > 0 ? feature.properties.oils : null;
+            var oilInfo = 'No oils used';
+            if (oils) {
+                oilInfo = oils.map(oil => {
+                    var oilType = oil.oil_type || 'Unknown oil';
+                    var quantity = oil.quantity || 'N/A';
+                    var unit = oil.quantity_measured_in || '';
+                    return `${oilType}, ${quantity} ${unit}`;
+                }).join('<br>');
+            }
+
+            // Water supplies: Check if water_supplies is an object or an array
+            var waterSupplies = feature.properties.water_supplies;
+            var waterSources = 'No water sources';
+
+            if (waterSupplies) {
+                if (Array.isArray(waterSupplies)) {
+                    // If water_supplies is an array
+                    waterSources = waterSupplies.map(function(supply) {
+                        return supply.source_of_water || 'Unknown source';
+                    }).join(', ');
+                } else if (typeof waterSupplies === 'object') {
+                    // If water_supplies is a single object
+                    waterSources = waterSupplies.source_of_water || 'Unknown source';
+                }
+            }
+
+            // Construct the info box content
+            var content = `
+                <h2>${name}</h2>
+                <p><strong>Address:</strong> ${address}</p>
+                <p><strong>Business Type:</strong> ${businessType}</p>
+                <p><strong>Business Category:</strong> ${businessCategory}</p>
+                <p><strong>Horse Power:</strong> ${nominalHorsePower}</p>
+                <p><strong>Uses Dyes:</strong> ${usesDyes}</p>
+                <p><strong>Uses Bleaching Materials:</strong> ${usesBleaching}</p>
+                <p><strong>Affected by Floods:</strong> ${affectedByFloods}</p>
+                <p><strong>Watercourse:</strong> ${situatedOnWatercourse}</p>
+                <p><strong>Status of River:</strong> ${statusOfRiverComments}</p>
+                <p><strong>Treated for Grease (soapsuds):</strong> ${treatedForGrease}</p>
+                <p><strong>Oils:</strong><br>${oilInfo}</p>
+                <p><strong>Water Sources:</strong> ${waterSources}</p>
+            `;
+
+            infoContent.innerHTML = content;
+            infoBox.style.display = 'block';
+
+            // Position the info box near the marker
+            positionInfoBox(layer);
+        }
+
+        // Function to position the info box near the marker
+        function positionInfoBox(layer) {
+            var infoBox = document.getElementById('info-box');
+            var mapContainer = document.getElementById('map');
+
+            // Get the pixel position of the marker
+            var latlng = layer.getLatLng();
+            var point = map.latLngToContainerPoint(latlng);
+
+            // Set the position of the info box (adjust as needed)
+            infoBox.style.top = (point.y + 15) + 'px';  // 15px below the marker
+            infoBox.style.left = (point.x + 20) + 'px'; // 20px to the right of the marker
+        }
+
+        // Function to close the info box
+        function closeInfoBox() {
+            var infoBox = document.getElementById('info-box');
+            infoBox.style.display = 'none';
+        }
+
+        // Function to zoom to the feature
+        function zoomToFeature(layer) {
+            map.setView(layer.getLatLng(), 16); // Adjust the zoom level as needed
+        }
+
+        // Function to populate the dropdown with business names
+        function populateDropdown(features) {
+            var businessSelect = document.getElementById('business-select');
+
+            // Clear existing options except the first
+            businessSelect.innerHTML = '<option value="">-- Select a Business --</option>';
+
+            features.forEach(function(feature, index) {
+                var name = feature.properties.name || 'Unnamed Business';
+                var option = document.createElement('option');
+                option.value = index;  // Use the index as a unique identifier
+                option.text = name;
+                businessSelect.appendChild(option);
+            });
+
+            // Add event listener for selection
+            businessSelect.addEventListener('change', function(e) {
+                var selectedIndex = e.target.value;
+                if (selectedIndex === "") {
+                    // Optionally, reset the map view or perform another action
+                    closeInfoBox(); // Close info box if no selection
+                    return;
+                }
+                var selectedFeature = allFeatures[selectedIndex];
+                if (selectedFeature) {
+                    var coords = selectedFeature.geometry.coordinates;
+                    var latlng;
+                    if (selectedFeature.geometry.type === "Point") {
+                        latlng = [coords[1], coords[0]];
+                    } else {
+                        // Handle other geometry types if necessary
+                        alert('Selected feature is not a point.');
+                        return;
+                    }
+
+                    // Zoom to the selected business
+                    map.setView(latlng, 16);  // Adjust the zoom level as needed
+
+                    // Find the corresponding layer and display the info box
+                    geojsonLayer.eachLayer(function(layer) {
+                        if (layer.feature === selectedFeature) {
+                            displayInfoBox(selectedFeature, layer);
+                        }
+                    });
+                }
+            });
+        }
+
+        // Fetch the GeoJSON data once and store it globally
         fetch(geojsonUrl)
             .then(response => response.json())
             .then(data => {
+                allGeoData = data; // Store the data globally
+                allFeatures = data.features; // Store all features for dropdown
+
+                // Initialize the main GeoJSON layer
                 geojsonLayer = L.geoJson(data, {
                     pointToLayer: function(feature, latlng) {
                         var businessCategory = feature.properties.business_category || 'Other';
                         var markerColor = getMarkerColor(businessCategory);
 
                         return L.circleMarker(latlng, {
-                            radius: 4,
+                            radius: 6,
                             fillColor: markerColor,
                             color: "#000",  // Border color
                             weight: 1,
@@ -184,128 +459,71 @@ fetch(riversGeojsonUrl)
                             fillOpacity: 0.8
                         });
                     },
-onEachFeature: function (feature, layer) {
-                // Extract properties
-                var name = feature.properties.name || 'N/A';
-                var businessType = feature.properties.business_type || 'N/A';
-                var businessCategory = feature.properties.business_category || 'Other';
-                var nominalHorsePower = feature.properties.nominal_horse_power || 'N/A';
-                var usesDyes = feature.properties.uses_dyes !== undefined ? (feature.properties.uses_dyes ? 'Yes' : 'No') : 'N/A';
-                var usesBleaching = feature.properties.uses_bleaching_materials !== undefined ? (feature.properties.uses_bleaching_materials ? 'Yes' : 'No') : 'N/A';
-                var affectedByFloods = feature.properties.affected_by_floods !== undefined ? (feature.properties.affected_by_floods ? 'Yes' : 'No') : 'N/A';
-                var situatedOnWatercourse = feature.properties.beck || 'N/A';
+                    onEachFeature: onEachFeature  // Use the reusable function
+                }).addTo(map);
 
-                // Status of river comments
-                var statusOfRiverComments = feature.properties.status_of_river_comments || 'No comments';
+                // Fit the map bounds to show all features initially
+                map.fitBounds(geojsonLayer.getBounds());
 
-                // Soapsuds: Check if the soapsuds property exists and is valid
-                var soapsuds = feature.properties.soapsuds && typeof feature.properties.soapsuds === 'object' ? feature.properties.soapsuds : null;
-                var treatedForGrease = soapsuds && soapsuds.treated_for_recovery_of_grease !== undefined ? (soapsuds.treated_for_recovery_of_grease ? 'Yes' : 'No') : 'N/A';
-
-                // Oils: Check if oils is an array and valid
-                var oils = Array.isArray(feature.properties.oils) && feature.properties.oils.length > 0 ? feature.properties.oils : null;
-                var oilInfo = 'No oils used';
-                if (oils) {
-                    oilInfo = oils.map(oil => {
-                        var oilType = oil.oil_type || 'Unknown oil';
-                        var quantity = oil.quantity || 'N/A';
-                        var unit = oil.quantity_measured_in || '';
-                        var value = oil.value || 'N/A';
-                        return `${oilType}: ${quantity} ${unit} (${value} value)`;
-                    }).join('<br>');
-                }
-
-                // Water supplies: Check if water_supplies is an object or an array
-                var waterSupplies = feature.properties.water_supplies;
-                var waterSources = 'No water sources';
-
-                if (waterSupplies) {
-                    if (Array.isArray(waterSupplies)) {
-                        // If water_supplies is an array
-                        waterSources = waterSupplies.map(function(supply) {
-                            return supply.source_of_water || 'Unknown source';
-                        }).join(', ');
-                    } else if (typeof waterSupplies === 'object') {
-                        // If water_supplies is a single object
-                        waterSources = waterSupplies.source_of_water || 'Unknown source';
-                    }
-                }
-
-                // Popup content
-                var popupContent = '<b>' + name + '</b><br>' +
-                                   'Business Type: ' + businessType + '<br>' +
-                                   'Business Category: ' + businessCategory + '<br>' +
-                                   'Horse Power: ' + nominalHorsePower + '<br>' +
-                                   'Uses Dyes: ' + usesDyes + '<br>' +
-                                   'Uses Bleaching Materials: ' + usesBleaching + '<br>' +
-                                   'Affected by Floods: ' + affectedByFloods + '<br>' +
-                                   'Watercourse: ' + situatedOnWatercourse + '<br>' +
-                                   'Status of River: ' + statusOfRiverComments + '<br>' +
-                                   'Treated for Grease (soapsuds): ' + treatedForGrease + '<br>' +
-                                   'Oils: ' + oilInfo + '<br>' +
-                                   'Water Sources: ' + waterSources;
-
-                layer.bindPopup(popupContent);
-            }
-        }).addTo(map);
-        map.fitBounds(geojsonLayer.getBounds());
-    })
-    .catch(err => console.error('Error loading GeoJSON: ', err));
+                // Populate the dropdown with all features
+                populateDropdown(allFeatures);
+            })
+            .catch(err => console.error('Error loading GeoJSON: ', err));
 
         // Function to filter data based on category
         function filterByCategory(category) {
+            if (!allGeoData) {
+                console.error('GeoJSON data not loaded yet.');
+                return;
+            }
+
+            // Remove existing GeoJSON layer if present
             if (geojsonLayer) {
                 map.removeLayer(geojsonLayer);
             }
 
-            fetch(geojsonUrl)
-                .then(response => response.json())
-                .then(data => {
-                    var filteredFeatures = category === 'All' 
-                        ? data.features 
-                        : data.features.filter(function (feature) {
-                            return feature.properties.business_category === category;
-                        });
+            // Filter features based on the selected category
+            var filteredFeatures = category === 'All' 
+                ? allGeoData.features 
+                : allGeoData.features.filter(function (feature) {
+                    return feature.properties.business_category === category;
+                });
 
-                    geojsonLayer = L.geoJson({
-                        "type": "FeatureCollection",
-                        "features": filteredFeatures
-                    }, {
-                        pointToLayer: function(feature, latlng) {
-                            var businessCategory = feature.properties.business_category || 'Other';
-                            var markerColor = getMarkerColor(businessCategory);
+            // Update the global allFeatures array to the filtered features
+            allFeatures = filteredFeatures;
 
-                            return L.circleMarker(latlng, {
-                                radius: 4,
-                                fillColor: markerColor,
-                                color: "#000",
-                                weight: 1,
-                                opacity: 1,
-                                fillOpacity: 0.8
-                            });
-                        },
-                        onEachFeature: function (feature, layer) {
-                            var name = feature.properties.name || 'N/A';
-                            var businessType = feature.properties.business_type || 'N/A';
-                            var businessCategory = feature.properties.business_category || 'Other';
-                            var nominalHorsePower = feature.properties.nominal_horse_power || 'N/A';
+            // Create a new GeoJSON layer with the filtered features
+            geojsonLayer = L.geoJson({
+                "type": "FeatureCollection",
+                "features": filteredFeatures
+            }, {
+                pointToLayer: function(feature, latlng) {
+                    var businessCategory = feature.properties.business_category || 'Other';
+                    var markerColor = getMarkerColor(businessCategory);
 
-                            // Popup content
-                            var popupContent = '<b>' + name + '</b><br>' +
-                                               'Business Type: ' + businessType + '<br>' +
-                                               'Business Category: ' + businessCategory + '<br>' +
-                                               'Horse Power: ' + nominalHorsePower;
+                    return L.circleMarker(latlng, {
+                        radius: 6,  // Consistent radius for visibility
+                        fillColor: markerColor,
+                        color: "#000",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    });
+                },
+                onEachFeature: onEachFeature  // Use the reusable function
+            }).addTo(map);
 
-                            layer.bindPopup(popupContent);
-                        }
-                    }).addTo(map);
+            // Fit the map bounds to the new filtered layer
+            if (filteredFeatures.length > 0) {
+                map.fitBounds(geojsonLayer.getBounds());
+            }
 
-                    map.fitBounds(geojsonLayer.getBounds());
-                })
-                .catch(err => console.error('Error loading filtered GeoJSON: ', err));
+            // Update the dropdown to reflect the filtered data
+            populateDropdown(allFeatures);
+            closeInfoBox(); // Close info box when filter changes
         }
 
-        // Attach event listeners to the buttons
+        // Attach event listeners to the category filter buttons
         document.getElementById('btn-woollen').addEventListener('click', function() {
             filterByCategory('Woollen & Worsted Manufacturers');
         });
@@ -321,6 +539,14 @@ onEachFeature: function (feature, layer) {
         document.getElementById('btn-all').addEventListener('click', function() {
             filterByCategory('All');
         });
+
+        // Attach event listener to the close button in the info box
+        document.querySelector('#info-box .close-btn').addEventListener('click', function() {
+            closeInfoBox();
+        });
+
+        // Optional: Adjust info box opacity dynamically (example implementation)
+        // You can add a range input to control opacity if desired
     </script>
 </body>
 </html>
