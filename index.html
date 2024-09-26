@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Leaflet Map with Filters and Info Box</title>
+    <title>Leaflet Map with Filters and Fixed Info Box</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -52,6 +52,7 @@
             border-radius: 5px;
             cursor: pointer;
             user-select: none;
+            transition: background-color 0.3s ease;
         }
 
         /* Specific colors for each filter button */
@@ -89,13 +90,15 @@
             padding: 5px;
             font-size: 14px;
             width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
         }
 
-        /* Info Box styling */
+        /* Fixed Info Box styling */
         #info-box {
             position: absolute;
-            top: 50px;
-            right: 20px;
+            top: 50px; /* Fixed position */
+            right: 20px; /* Fixed position */
             width: 300px;
             max-height: 80%;
             overflow-y: auto;
@@ -105,6 +108,7 @@
             padding: 15px;
             z-index: 1001;
             display: none; /* Hidden by default */
+            transition: opacity 0.3s ease;
         }
 
         /* Close button inside the info box */
@@ -121,7 +125,7 @@
             color: #000;
         }
 
-        /* Sidebar content styling */
+        /* Info Box content styling */
         #info-box h2 {
             margin-top: 0;
             font-size: 20px;
@@ -130,6 +134,11 @@
         #info-box p {
             margin: 5px 0;
             font-size: 14px;
+        }
+
+        /* Smooth transition for marker style changes */
+        .marker-transition {
+            transition: all 0.3s ease;
         }
 
         /* Responsive adjustments */
@@ -172,7 +181,7 @@
             <div id="btn-all" class="filter-button">All</div>
         </div>
 
-        <!-- Info Box -->
+        <!-- Fixed Info Box -->
         <div id="info-box">
             <span class="close-btn">&times;</span>
             <div id="info-content">
@@ -281,15 +290,92 @@
             }
         }
 
-        // Reusable function to handle feature interactions
+        // Variable to keep track of the currently selected marker
+        var selectedLayer = null;
+
+        // Reusable function to handle feature interactions with highlighting and hover effects
         function onEachFeature(feature, layer) {
+            // Add a CSS class for smooth transitions
+            layer.options.className = 'marker-transition';
+
+            // Click event to highlight marker and display info box
             layer.on('click', function () {
+                // If another marker is selected, reset its style
+                if (selectedLayer && selectedLayer !== layer) {
+                    selectedLayer.setStyle({
+                        radius: 6,
+                        fillColor: getMarkerColor(selectedLayer.feature.properties.business_category || 'Other'),
+                        color: "#000",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    });
+                }
+
+                // Reset styles for all markers except the selected one
+                geojsonLayer.eachLayer(function(l) {
+                    if (l !== layer) {
+                        l.setStyle({ 
+                            radius: 6,
+                            fillColor: getMarkerColor(l.feature.properties.business_category || 'Other'),
+                            color: "#000",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    }
+                });
+
+                // Highlight the selected marker
+                layer.setStyle({
+                    radius: 8, // Increased size for highlight
+                    fillColor: getMarkerColor(feature.properties.business_category || 'Other'), // Original color
+                    color: "#000",
+                    weight: 2, // Thicker border
+                    opacity: 1,
+                    fillOpacity: 1
+                });
+
+                // Update the selectedLayer reference
+                selectedLayer = layer;
+
+                // Display the info box with business details
                 displayInfoBox(feature, layer);
+
+                // Zoom to the selected feature
                 zoomToFeature(layer);
+            });
+
+            // Mouseover event to grey out the marker if it's not selected
+            layer.on('mouseover', function () {
+                // Check if the marker is not currently highlighted (fillOpacity is not 1)
+                if (layer !== selectedLayer) {
+                    layer.setStyle({
+                        fillColor: '#808080', // Grey color
+                        fillOpacity: 0.5
+                    });
+                }
+            });
+
+            // Mouseout event to reset the marker style if it's not selected
+            layer.on('mouseout', function () {
+                // If the marker is highlighted, keep its original color and opacity
+                if (layer === selectedLayer) {
+                    layer.setStyle({
+                        fillColor: getMarkerColor(feature.properties.business_category || 'Other'),
+                        fillOpacity: 1
+                    });
+                } else {
+                    // Reset to original style based on business category
+                    layer.setStyle({
+                        fillColor: getMarkerColor(feature.properties.business_category || 'Other'),
+                        fillOpacity: 0.8
+                    });
+                }
             });
         }
 
-        // Function to display the info box with business details
+        // Function to display the fixed info box with business details
         function displayInfoBox(feature, layer) {
             var infoBox = document.getElementById('info-box');
             var infoContent = document.getElementById('info-content');
@@ -359,29 +445,16 @@
 
             infoContent.innerHTML = content;
             infoBox.style.display = 'block';
-
-            // Position the info box near the marker
-            positionInfoBox(layer);
-        }
-
-        // Function to position the info box near the marker
-        function positionInfoBox(layer) {
-            var infoBox = document.getElementById('info-box');
-            var mapContainer = document.getElementById('map');
-
-            // Get the pixel position of the marker
-            var latlng = layer.getLatLng();
-            var point = map.latLngToContainerPoint(latlng);
-
-            // Set the position of the info box (adjust as needed)
-            infoBox.style.top = (point.y + 15) + 'px';  // 15px below the marker
-            infoBox.style.left = (point.x + 20) + 'px'; // 20px to the right of the marker
+            infoBox.style.opacity = '1';
         }
 
         // Function to close the info box
         function closeInfoBox() {
             var infoBox = document.getElementById('info-box');
             infoBox.style.display = 'none';
+            infoBox.style.opacity = '0';
+            // Reset the selectedLayer reference
+            selectedLayer = null;
         }
 
         // Function to zoom to the feature
@@ -408,8 +481,18 @@
             businessSelect.addEventListener('change', function(e) {
                 var selectedIndex = e.target.value;
                 if (selectedIndex === "") {
-                    // Optionally, reset the map view or perform another action
-                    closeInfoBox(); // Close info box if no selection
+                    // Close the info box and reset all markers if no selection
+                    closeInfoBox(); 
+                    geojsonLayer.eachLayer(function(l) {
+                        l.setStyle({ 
+                            radius: 6,
+                            fillColor: getMarkerColor(l.feature.properties.business_category || 'Other'),
+                            color: "#000",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    });
                     return;
                 }
                 var selectedFeature = allFeatures[selectedIndex];
@@ -427,9 +510,49 @@
                     // Zoom to the selected business
                     map.setView(latlng, 16);  // Adjust the zoom level as needed
 
-                    // Find the corresponding layer and display the info box
+                    // Find the corresponding layer and highlight it
                     geojsonLayer.eachLayer(function(layer) {
                         if (layer.feature === selectedFeature) {
+                            // If another marker is selected, reset its style
+                            if (selectedLayer && selectedLayer !== layer) {
+                                selectedLayer.setStyle({
+                                    radius: 6,
+                                    fillColor: getMarkerColor(selectedLayer.feature.properties.business_category || 'Other'),
+                                    color: "#000",
+                                    weight: 1,
+                                    opacity: 1,
+                                    fillOpacity: 0.8
+                                });
+                            }
+
+                            // Reset styles for all markers except the selected one
+                            geojsonLayer.eachLayer(function(l) {
+                                if (l !== layer) {
+                                    l.setStyle({ 
+                                        radius: 6,
+                                        fillColor: getMarkerColor(l.feature.properties.business_category || 'Other'),
+                                        color: "#000",
+                                        weight: 1,
+                                        opacity: 1,
+                                        fillOpacity: 0.8
+                                    });
+                                }
+                            });
+
+                            // Highlight the selected marker
+                            layer.setStyle({
+                                radius: 8,
+                                fillColor: getMarkerColor(selectedFeature.properties.business_category || 'Other'),
+                                color: "#000",
+                                weight: 2,
+                                opacity: 1,
+                                fillOpacity: 1
+                            });
+
+                            // Update the selectedLayer reference
+                            selectedLayer = layer;
+
+                            // Display the info box
                             displayInfoBox(selectedFeature, layer);
                         }
                     });
@@ -456,7 +579,8 @@
                             color: "#000",  // Border color
                             weight: 1,
                             opacity: 1,
-                            fillOpacity: 0.8
+                            fillOpacity: 0.8,
+                            className: 'marker-transition' // Add the transition class
                         });
                     },
                     onEachFeature: onEachFeature  // Use the reusable function
@@ -507,7 +631,8 @@
                         color: "#000",
                         weight: 1,
                         opacity: 1,
-                        fillOpacity: 0.8
+                        fillOpacity: 0.8,
+                        className: 'marker-transition' // Add the transition class
                     });
                 },
                 onEachFeature: onEachFeature  // Use the reusable function
@@ -521,6 +646,9 @@
             // Update the dropdown to reflect the filtered data
             populateDropdown(allFeatures);
             closeInfoBox(); // Close info box when filter changes
+
+            // Reset selectedLayer reference
+            selectedLayer = null;
         }
 
         // Attach event listeners to the category filter buttons
@@ -543,10 +671,19 @@
         // Attach event listener to the close button in the info box
         document.querySelector('#info-box .close-btn').addEventListener('click', function() {
             closeInfoBox();
+            // Reset selectedLayer reference
+            if (selectedLayer) {
+                selectedLayer.setStyle({
+                    radius: 6,
+                    fillColor: getMarkerColor(selectedLayer.feature.properties.business_category || 'Other'),
+                    color: "#000",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+                selectedLayer = null;
+            }
         });
-
-        // Optional: Adjust info box opacity dynamically (example implementation)
-        // You can add a range input to control opacity if desired
     </script>
 </body>
 </html>
