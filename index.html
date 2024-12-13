@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     onEachFeature: function (feature, layer) {
                         // Extract the river name from the feature properties
-                        var riverName = feature.properties.Name || 'Unnamed River';
+                        var riverName = feature.properties.name || 'Unnamed River';
 
                         // Add a tooltip that follows the mouse cursor on hover
                         layer.bindTooltip(riverName, {
